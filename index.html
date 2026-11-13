@@ -1,0 +1,890 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Global coverage planner</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Schibsted+Grotesk:wght@400;500;600;700&display=swap" rel="stylesheet">
+<style>
+:root{
+  --paper:#EDF0F5; --panel:#FFFFFF; --ink:#12203A; --muted:#5A667F; --line:#D3D9E5; --track:#E4E8F0;
+  --cover:#0E8C86; --on-cover:#FFFFFF; --gap:#D9482B; --accent:#2F4BDB; --accent-ink:#FFFFFF;
+  --land:#9EA9C0; --night:18,32,58;
+  color-scheme:light;
+  box-sizing:border-box;
+  padding-top:env(safe-area-inset-top,0px);
+  padding-bottom:env(safe-area-inset-bottom,0px);
+}
+@media (prefers-color-scheme: dark){
+  :root:not([data-theme="light"]){
+    --paper:#0C1322; --panel:#152036; --ink:#E8EDF7; --muted:#96A2BC; --line:#2A3752; --track:#1D2943;
+    --cover:#2EC4B6; --on-cover:#04201E; --gap:#FF7A59; --accent:#8397FF; --accent-ink:#0C1322;
+    --land:#3B4B6C; --night:2,5,12;
+    color-scheme:dark;
+  }
+}
+:root[data-theme="dark"]{
+  --paper:#0C1322; --panel:#152036; --ink:#E8EDF7; --muted:#96A2BC; --line:#2A3752; --track:#1D2943;
+  --cover:#2EC4B6; --on-cover:#04201E; --gap:#FF7A59; --accent:#8397FF; --accent-ink:#0C1322;
+  --land:#3B4B6C; --night:2,5,12;
+  color-scheme:dark;
+}
+html{scroll-padding-top:env(safe-area-inset-top,0px)}
+*{box-sizing:border-box}
+body{margin:0;background:var(--paper);color:var(--ink);font:400 15px/1.45 "Schibsted Grotesk",system-ui,-apple-system,"Segoe UI",Roboto,sans-serif;font-variant-numeric:tabular-nums;-webkit-text-size-adjust:100%}
+button,input,select{font:inherit;color:inherit}
+:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
+small{color:var(--muted)}
+
+.app{max-width:1320px;margin:0 auto;padding:22px 20px 56px}
+.top{display:flex;flex-wrap:wrap;gap:16px 40px;align-items:flex-end;justify-content:space-between;margin-bottom:20px}
+h1{font-size:32px;line-height:1.08;margin:0 0 6px;letter-spacing:-.025em;font-weight:700}
+.lede{margin:0;color:var(--muted);max-width:58ch}
+.controls{display:flex;flex-wrap:wrap;gap:10px 16px;align-items:flex-end}
+.ctl{display:flex;flex-direction:column;gap:3px;font-size:13px;color:var(--muted)}
+.ctl input[type=date],.ctl select{height:36px;padding:0 10px;border:1px solid var(--line);border-radius:8px;background:var(--panel);color:var(--ink)}
+.chk{display:flex;align-items:center;gap:8px;height:36px;color:var(--ink);font-size:14px;cursor:pointer}
+.chk input{width:16px;height:16px;accent-color:var(--accent)}
+
+.layout{display:grid;grid-template-columns:352px minmax(0,1fr);gap:20px;align-items:start}
+@media (max-width:980px){.layout{grid-template-columns:1fr}}
+.side,.main{display:flex;flex-direction:column;gap:20px;min-width:0}
+.panel{background:var(--panel);border:1px solid var(--line);border-radius:12px;padding:16px 18px}
+.panel h2{font-size:17px;margin:0;letter-spacing:-.01em;font-weight:650}
+.ph{display:flex;flex-wrap:wrap;gap:8px 16px;align-items:center;justify-content:space-between;margin-bottom:12px}
+.hint{margin:2px 0 0;font-size:13px;color:var(--muted)}
+
+.seg{display:inline-flex;border:1px solid var(--line);border-radius:8px;overflow:hidden;background:var(--panel)}
+.seg button{border:0;background:transparent;padding:6px 12px;cursor:pointer;font-size:14px;color:var(--muted)}
+.seg button+button{border-left:1px solid var(--line)}
+.seg button[aria-pressed="true"]{background:var(--ink);color:var(--panel);font-weight:600}
+.seg.sm button{padding:3px 9px;font-size:12.5px}
+
+/* sidebar lists */
+.list{display:flex;flex-direction:column}
+.item{--c:var(--ink);border-left:4px solid var(--c);padding:10px 0 10px 12px;margin-left:2px}
+.item+.item{border-top:1px solid var(--line)}
+.ih{display:flex;align-items:center;gap:8px}
+.nm{display:flex;flex-direction:column;line-height:1.2;min-width:0;flex:1}
+.nm b{font-weight:600;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.nm small{font-size:12.5px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.x{border:0;background:transparent;width:28px;height:28px;border-radius:6px;font-size:20px;line-height:1;color:var(--muted);cursor:pointer}
+.x:hover{background:var(--track);color:var(--ink)}
+.im{font-size:12.5px;color:var(--muted);margin:4px 0 8px}
+.it{display:flex;align-items:flex-end;gap:10px;flex-wrap:wrap}
+.it label{display:flex;flex-direction:column;gap:2px;font-size:12.5px;color:var(--muted)}
+.it input[type=time]{height:34px;padding:0 8px;border:1px solid var(--line);border-radius:6px;background:var(--paper);color:var(--ink)}
+.len{font-size:13px;color:var(--muted);padding-bottom:7px;margin-left:auto}
+.empty{margin:6px 0 2px;color:var(--muted);font-size:14px}
+
+/* search */
+.search{position:relative;margin-top:10px}
+.search input{width:100%;height:38px;padding:0 12px;border:1px solid var(--line);border-radius:8px;background:var(--paper);color:var(--ink)}
+.res{position:absolute;z-index:20;left:0;right:0;top:42px;margin:0;padding:4px;list-style:none;background:var(--panel);border:1px solid var(--line);border-radius:10px;box-shadow:0 10px 30px rgba(10,20,40,.18);max-height:320px;overflow:auto}
+.res li{display:flex;justify-content:space-between;gap:10px;padding:7px 9px;border-radius:6px;cursor:pointer;font-size:14px}
+.res li.on,.res li:hover{background:var(--track)}
+.res li em{font-style:normal;color:var(--muted);font-size:12.5px;white-space:nowrap}
+.res li.none{cursor:default;color:var(--muted)}
+.res li.none:hover{background:transparent}
+
+.link{border:0;background:transparent;color:var(--muted);text-decoration:underline;cursor:pointer;font-size:13px;padding:0;align-self:flex-start}
+
+/* stats */
+.stats{display:flex;flex-wrap:wrap;gap:6px 36px;margin-bottom:14px}
+.stat{display:flex;flex-direction:column;line-height:1.15}
+.stat b{font-size:26px;font-weight:650;letter-spacing:-.02em}
+.stat b i{font-style:normal;font-size:14px;font-weight:500;color:var(--muted);margin-left:2px}
+.stat span{font-size:13px;color:var(--muted);margin-top:2px}
+.stat .up{color:var(--cover);font-weight:600}
+
+/* timeline */
+.tl{--lab:188px;position:relative;touch-action:pan-y;user-select:none;-webkit-user-select:none}
+@media (max-width:640px){.tl{--lab:104px}.ln small{display:none}.app{padding:16px 12px 48px}h1{font-size:26px}}
+.r{display:grid;grid-template-columns:var(--lab) minmax(0,1fr);align-items:center;min-height:34px}
+.r.sub{min-height:30px;margin-top:6px}
+.r.sub .lab{font-size:12.5px;color:var(--muted);font-weight:600}
+.lab{display:flex;align-items:center;gap:8px;padding-right:12px;min-width:0}
+.lab .dot{width:10px;height:10px;border-radius:50%;flex:none}
+.lab .dia{width:9px;height:9px;transform:rotate(45deg);background:var(--ink);flex:none}
+.ln{display:flex;flex-direction:column;line-height:1.15;min-width:0}
+.ln b{font-weight:600;font-size:14px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.ln small{font-size:12px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.ax{position:relative;height:22px}
+.ax span{position:absolute;top:2px;transform:translateX(-50%);font-size:12px;color:var(--muted)}
+.ax span:first-child{transform:none}
+.trk{position:relative;height:24px;border-radius:5px;overflow:hidden;background-color:var(--track);background-image:linear-gradient(to right,var(--line) 1px,transparent 1px);background-size:calc(100%/24) 100%}
+.trk.tall{height:28px}
+.sg{position:absolute;top:0;bottom:0;display:flex;align-items:center;justify-content:center;font-size:12px;font-style:normal;font-weight:600;overflow:hidden}
+.sg.site{background:var(--c);border-radius:4px}
+.sg.plan{background:repeating-linear-gradient(135deg,var(--c) 0 5px,color-mix(in srgb,var(--c) 30%,transparent) 5px 10px);outline:1px dashed var(--c);outline-offset:-1px;border-radius:4px}
+.sg.cov{background:var(--cover);border-radius:4px}
+.sg.add{background:repeating-linear-gradient(135deg,var(--cover) 0 5px,color-mix(in srgb,var(--cover) 30%,transparent) 5px 10px);outline:1px dashed var(--cover);outline-offset:-1px;border-radius:4px}
+.sg.gap{background:repeating-linear-gradient(135deg,color-mix(in srgb,var(--gap) 60%,transparent) 0 3px,transparent 3px 7px);outline:1px solid color-mix(in srgb,var(--gap) 65%,transparent);outline-offset:-1px;border-radius:4px}
+.sg.heat{color:var(--on-cover)}
+.cur{position:absolute;top:0;bottom:0;left:var(--lab);right:0;pointer-events:none}
+.cur .line{position:absolute;top:0;bottom:0;width:2px;margin-left:-1px;background:var(--ink);opacity:.75}
+.cur .bub{position:absolute;top:0;height:20px;line-height:20px;padding:0 7px;border-radius:4px;background:var(--ink);color:var(--panel);font-size:12px;font-weight:600;white-space:nowrap;transform:translateX(-50%)}
+.cur .bub.l{transform:none}
+.cur .bub.rr{transform:translateX(-100%)}
+.legend{display:flex;flex-wrap:wrap;gap:6px 18px;margin-top:14px;font-size:13px;color:var(--muted)}
+.legend span{display:inline-flex;align-items:center;gap:7px}
+.legend i{display:inline-block;width:22px;height:12px;border-radius:3px}
+.note{margin:0 0 10px;padding:8px 10px;border-radius:8px;background:color-mix(in srgb,var(--gap) 14%,transparent);font-size:13.5px}
+
+/* map + clocks */
+.mapwrap{position:relative;border-radius:8px;overflow:hidden;background:var(--track)}
+#map{display:block;width:100%}
+.cap{margin:8px 0 0;font-size:13px;color:var(--muted)}
+.clock{display:grid;grid-template-columns:repeat(auto-fill,minmax(220px,1fr));gap:8px;margin-top:14px}
+.chip{display:flex;align-items:center;gap:9px;padding:8px 10px;border:1px solid var(--line);border-radius:8px;font-size:14px}
+.chip .dot{width:10px;height:10px;border-radius:50%;flex:none}
+.chip .dia{width:9px;height:9px;transform:rotate(45deg);background:var(--ink);flex:none}
+.chip div{display:flex;flex-direction:column;line-height:1.2;min-width:0}
+.chip b{font-weight:600}
+.chip small{font-size:12.5px}
+.chip .on{color:var(--cover);font-weight:600}
+.chip .bad{color:var(--gap);font-weight:600}
+
+/* receivers results */
+.rc{padding:12px 0}
+.rc+.rc{border-top:1px solid var(--line)}
+.rh{display:flex;flex-wrap:wrap;gap:2px 12px;align-items:baseline;justify-content:space-between}
+.rh b{font-weight:600}
+.pb{position:relative;height:10px;border-radius:5px;background:var(--track);overflow:hidden;margin:8px 0 6px}
+.pb i{position:absolute;top:0;bottom:0;left:0}
+.pb .a{background:var(--cover)}
+.pb .b{background:repeating-linear-gradient(135deg,var(--cover) 0 4px,color-mix(in srgb,var(--cover) 30%,transparent) 4px 8px)}
+.rc p{margin:2px 0;font-size:13.5px}
+.rc .pct{font-weight:600}
+
+/* suggestions */
+.sugc{display:flex;flex-wrap:wrap;gap:10px 16px;align-items:flex-end;margin-bottom:6px}
+.sugc label{display:flex;flex-direction:column;gap:3px;font-size:13px;color:var(--muted)}
+.sugc input,.sugc select{height:36px;padding:0 10px;border:1px solid var(--line);border-radius:8px;background:var(--paper);color:var(--ink)}
+.sug{display:grid;grid-template-columns:minmax(0,1fr) 110px auto;gap:10px;align-items:center;padding:10px 0}
+.sug+.sug{border-top:1px solid var(--line)}
+.sug .gb{height:8px;border-radius:4px;background:var(--track);overflow:hidden}
+.sug .gb i{display:block;height:100%;background:var(--cover)}
+.btn{border:1px solid var(--ink);background:transparent;border-radius:8px;padding:6px 12px;cursor:pointer;font-size:13.5px;font-weight:600;white-space:nowrap}
+.btn:hover{background:var(--ink);color:var(--panel)}
+@media (max-width:560px){.sug{grid-template-columns:1fr auto}.sug .gb{display:none}}
+</style>
+</head>
+<body>
+<div class="app">
+  <header class="top">
+    <div>
+      <h1>Global coverage planner</h1>
+      <p class="lede">See who is on shift across time zones, test what a new site adds, and check cover for any receiving end.</p>
+    </div>
+    <div class="controls">
+      <label class="ctl">Date<input type="date" id="date"></label>
+      <label class="ctl">Show times in<select id="viewTz"></select></label>
+      <label class="chk"><input type="checkbox" id="wk"> Mon–Fri only</label>
+    </div>
+  </header>
+
+  <div class="layout">
+    <aside class="side">
+      <section class="panel" aria-labelledby="h-sites">
+        <div class="ph"><h2 id="h-sites">Team sites</h2></div>
+        <p class="hint">Hours are local to each site. Mark a site as planned to model it without counting it today.</p>
+        <div class="list" id="siteList"></div>
+        <div class="search" id="siteSearch"></div>
+      </section>
+      <section class="panel" aria-labelledby="h-rcv">
+        <div class="ph"><h2 id="h-rcv">Receiving ends</h2></div>
+        <p class="hint">Where your audience is, and the local hours that need cover. Add several to compare regions.</p>
+        <div class="list" id="rcvList"></div>
+        <div class="search" id="rcvSearch"></div>
+      </section>
+      <button type="button" class="link" id="reset">Reset to the example setup</button>
+    </aside>
+
+    <main class="main">
+      <section class="panel" aria-labelledby="h-tl">
+        <div class="ph">
+          <h2 id="h-tl">Coverage across 24 hours</h2>
+          <div class="seg" role="group" aria-label="Scenario" id="modeSeg">
+            <button type="button" data-mode="current">Live sites</button>
+            <button type="button" data-mode="scenario">With planned</button>
+            <button type="button" data-mode="compare">Compare</button>
+          </div>
+        </div>
+        <div class="stats" id="stats"></div>
+        <div id="notes"></div>
+        <div class="tl" id="tl" aria-label="Coverage timeline. Move the pointer across it to inspect a moment."></div>
+        <div class="legend" id="legend"></div>
+      </section>
+
+      <section class="panel" aria-labelledby="h-map">
+        <div class="ph"><h2 id="h-map">Around the world at this moment</h2></div>
+        <div class="mapwrap"><canvas id="map" role="img" aria-label="World map showing day and night and the position of each site"></canvas></div>
+        <p class="cap" id="mapcap"></p>
+        <div class="clock" id="clock"></div>
+      </section>
+
+      <section class="panel" aria-labelledby="h-rr">
+        <div class="ph"><h2 id="h-rr">Cover for each receiving end</h2></div>
+        <div id="rcvResults"></div>
+      </section>
+
+      <section class="panel" aria-labelledby="h-sug">
+        <div class="ph"><h2 id="h-sug">Where to add next</h2></div>
+        <p class="hint">Tries one new site in every time zone you don’t cover yet and ranks them by how much cover they add.</p>
+        <div class="sugc">
+          <label>Shift starts<input type="time" step="900" id="sugS"></label>
+          <label>Shift ends<input type="time" step="900" id="sugE"></label>
+          <label>Optimise for<select id="sugObj"><option value="receivers">Receiving ends</option><option value="global">Around the clock</option></select></label>
+        </div>
+        <div id="sugRes"></div>
+      </section>
+    </main>
+  </div>
+</div>
+
+<script>
+(()=>{
+"use strict";
+const N=96, STEP=900000;
+const PALETTE=["#3B5BDB","#E8890C","#9B51E0","#2E9E5B","#D6336C","#1C8FD1","#B39B00","#C0562F","#7A7F8E"];
+
+/* ---------- City database: name|country|IANA zone|lat|lon|aliases ---------- */
+const CITY_DATA=`Oslo|Norway|Europe/Oslo|59.91|10.75
+Stockholm|Sweden|Europe/Stockholm|59.33|18.07
+Copenhagen|Denmark|Europe/Copenhagen|55.68|12.57
+Helsinki|Finland|Europe/Helsinki|60.17|24.94
+Reykjavik|Iceland|Atlantic/Reykjavik|64.15|-21.94
+London|United Kingdom|Europe/London|51.51|-0.13
+Dublin|Ireland|Europe/Dublin|53.35|-6.26
+Lisbon|Portugal|Europe/Lisbon|38.72|-9.14
+Madrid|Spain|Europe/Madrid|40.42|-3.70
+Barcelona|Spain|Europe/Madrid|41.39|2.17
+Paris|France|Europe/Paris|48.86|2.35
+Amsterdam|Netherlands|Europe/Amsterdam|52.37|4.90
+Brussels|Belgium|Europe/Brussels|50.85|4.35
+Berlin|Germany|Europe/Berlin|52.52|13.40
+Frankfurt|Germany|Europe/Berlin|50.11|8.68
+Munich|Germany|Europe/Berlin|48.14|11.58|munchen
+Zurich|Switzerland|Europe/Zurich|47.38|8.54
+Vienna|Austria|Europe/Vienna|48.21|16.37|wien
+Prague|Czechia|Europe/Prague|50.08|14.44
+Warsaw|Poland|Europe/Warsaw|52.23|21.01
+Budapest|Hungary|Europe/Budapest|47.50|19.04
+Rome|Italy|Europe/Rome|41.90|12.50
+Milan|Italy|Europe/Rome|45.46|9.19
+Athens|Greece|Europe/Athens|37.98|23.73
+Bucharest|Romania|Europe/Bucharest|44.43|26.10
+Kyiv|Ukraine|Europe/Kyiv|50.45|30.52|kiev
+Istanbul|Turkey|Europe/Istanbul|41.01|28.98
+Moscow|Russia|Europe/Moscow|55.76|37.62
+Tallinn|Estonia|Europe/Tallinn|59.44|24.75
+Riga|Latvia|Europe/Riga|56.95|24.11
+Vilnius|Lithuania|Europe/Vilnius|54.69|25.28
+Dubai|United Arab Emirates|Asia/Dubai|25.20|55.27|uae,abu dhabi
+Riyadh|Saudi Arabia|Asia/Riyadh|24.71|46.68
+Doha|Qatar|Asia/Qatar|25.29|51.53
+Tel Aviv|Israel|Asia/Jerusalem|32.09|34.78|jerusalem
+Tehran|Iran|Asia/Tehran|35.69|51.39
+Cairo|Egypt|Africa/Cairo|30.04|31.24
+Lagos|Nigeria|Africa/Lagos|6.52|3.38
+Accra|Ghana|Africa/Accra|5.60|-0.19
+Casablanca|Morocco|Africa/Casablanca|33.57|-7.59
+Nairobi|Kenya|Africa/Nairobi|-1.29|36.82
+Addis Ababa|Ethiopia|Africa/Addis_Ababa|9.03|38.74
+Johannesburg|South Africa|Africa/Johannesburg|-26.20|28.05
+Cape Town|South Africa|Africa/Johannesburg|-33.92|18.42
+Karachi|Pakistan|Asia/Karachi|24.86|67.01
+Tashkent|Uzbekistan|Asia/Tashkent|41.30|69.24
+Almaty|Kazakhstan|Asia/Almaty|43.24|76.89
+Delhi|India|Asia/Kolkata|28.61|77.21|new delhi
+Mumbai|India|Asia/Kolkata|19.08|72.88|bombay
+Bengaluru|India|Asia/Kolkata|12.97|77.59|bangalore
+Hyderabad|India|Asia/Kolkata|17.39|78.49
+Colombo|Sri Lanka|Asia/Colombo|6.93|79.86
+Kathmandu|Nepal|Asia/Kathmandu|27.72|85.32
+Dhaka|Bangladesh|Asia/Dhaka|23.81|90.41
+Bangkok|Thailand|Asia/Bangkok|13.76|100.50
+Hanoi|Vietnam|Asia/Bangkok|21.03|105.85
+Ho Chi Minh City|Vietnam|Asia/Ho_Chi_Minh|10.82|106.63|saigon
+Jakarta|Indonesia|Asia/Jakarta|-6.21|106.85
+Kuala Lumpur|Malaysia|Asia/Kuala_Lumpur|3.14|101.69
+Singapore|Singapore|Asia/Singapore|1.35|103.82
+Manila|Philippines|Asia/Manila|14.60|120.98
+Hong Kong|Hong Kong|Asia/Hong_Kong|22.32|114.17
+Shanghai|China|Asia/Shanghai|31.23|121.47
+Beijing|China|Asia/Shanghai|39.90|116.41
+Shenzhen|China|Asia/Shanghai|22.54|114.06
+Taipei|Taiwan|Asia/Taipei|25.03|121.57
+Seoul|South Korea|Asia/Seoul|37.57|126.98
+Tokyo|Japan|Asia/Tokyo|35.68|139.69
+Osaka|Japan|Asia/Tokyo|34.69|135.50
+Perth|Australia|Australia/Perth|-31.95|115.86
+Adelaide|Australia|Australia/Adelaide|-34.93|138.60
+Brisbane|Australia|Australia/Brisbane|-27.47|153.03
+Sydney|Australia|Australia/Sydney|-33.87|151.21
+Melbourne|Australia|Australia/Melbourne|-37.81|144.96
+Auckland|New Zealand|Pacific/Auckland|-36.85|174.76
+Honolulu|United States|Pacific/Honolulu|21.31|-157.86|hawaii
+Anchorage|United States|America/Anchorage|61.22|-149.90|alaska
+Vancouver|Canada|America/Vancouver|49.28|-123.12
+Los Angeles|United States|America/Los_Angeles|34.05|-118.24|la
+San Jose|United States|America/Los_Angeles|37.34|-121.89|california,bay area,silicon valley
+San Francisco|United States|America/Los_Angeles|37.77|-122.42|sf,bay area
+Seattle|United States|America/Los_Angeles|47.61|-122.33
+Portland|United States|America/Los_Angeles|45.52|-122.68
+San Diego|United States|America/Los_Angeles|32.72|-117.16
+Las Vegas|United States|America/Los_Angeles|36.17|-115.14
+Phoenix|United States|America/Phoenix|33.45|-112.07|arizona
+Denver|United States|America/Denver|39.74|-104.99|colorado,boulder
+Salt Lake City|United States|America/Denver|40.76|-111.89|utah
+Calgary|Canada|America/Edmonton|51.05|-114.07
+Edmonton|Canada|America/Edmonton|53.55|-113.49
+Mexico City|Mexico|America/Mexico_City|19.43|-99.13
+Chicago|United States|America/Chicago|41.88|-87.63
+Austin|United States|America/Chicago|30.27|-97.74|texas
+Dallas|United States|America/Chicago|32.78|-96.80|texas
+Houston|United States|America/Chicago|29.76|-95.37|texas
+Minneapolis|United States|America/Chicago|44.98|-93.27
+Winnipeg|Canada|America/Winnipeg|49.90|-97.14
+New York|United States|America/New_York|40.71|-74.01|nyc
+Atlanta|United States|America/New_York|33.75|-84.39
+Miami|United States|America/New_York|25.76|-80.19
+Raleigh|United States|America/New_York|35.78|-78.64
+Boston|United States|America/New_York|42.36|-71.06
+Washington DC|United States|America/New_York|38.91|-77.04|washington
+Toronto|Canada|America/Toronto|43.65|-79.38
+Montreal|Canada|America/Toronto|45.50|-73.57
+Halifax|Canada|America/Halifax|44.65|-63.57
+Panama City|Panama|America/Panama|8.98|-79.52
+San José|Costa Rica|America/Costa_Rica|9.93|-84.08|san jose costa rica
+Bogota|Colombia|America/Bogota|4.71|-74.07
+Lima|Peru|America/Lima|-12.05|-77.04
+Santiago|Chile|America/Santiago|-33.45|-70.67
+Buenos Aires|Argentina|America/Argentina/Buenos_Aires|-34.60|-58.38
+Sao Paulo|Brazil|America/Sao_Paulo|-23.55|-46.63|são paulo
+Rio de Janeiro|Brazil|America/Sao_Paulo|-22.91|-43.17`;
+
+const norm=s=>String(s).normalize("NFD").replace(/[\u0300-\u036f]/g,"").toLowerCase();
+const CITIES=CITY_DATA.split("\n").map(l=>{const [name,country,tz,lat,lon,alias]=l.split("|");return{name,country,tz,lat:+lat,lon:+lon,alias:alias||""};});
+const known=new Set(CITIES.map(c=>c.tz));
+let extra=[];
+try{
+  if(typeof Intl.supportedValuesOf==="function"){
+    extra=Intl.supportedValuesOf("timeZone").filter(z=>z.includes("/")&&!z.startsWith("Etc/")&&!known.has(z))
+      .map(z=>({name:z.split("/").pop().replace(/_/g," "),country:z,tz:z,lat:null,lon:null,alias:""}));
+  }
+}catch(e){}
+const ALL=[...CITIES,...extra];
+ALL.forEach(c=>{c.key=norm(c.name+" "+c.country+" "+c.alias);c.n=norm(c.name);c.al=norm(c.alias).split(",").filter(Boolean);});
+function search(q){
+  q=norm(q.trim()); if(!q) return [];
+  const out=[];
+  for(const c of ALL){
+    let s=-1;
+    if(c.n===q) s=0;
+    else if(c.n.startsWith(q)) s=1;
+    else if(c.al.some(a=>a.startsWith(q))) s=2;
+    else if(c.n.split(/[\s-]/).some(w=>w.startsWith(q))) s=3;
+    else if(c.key.includes(q)) s=4;
+    if(s>=0) out.push([s+(c.lat==null?10:0),c]);
+  }
+  out.sort((a,b)=>a[0]-b[0]);
+  return out.slice(0,8).map(x=>x[1]);
+}
+
+/* ---------- time helpers ---------- */
+const $=(s,r=document)=>r.querySelector(s);
+const pad=n=>String(n).padStart(2,"0");
+const esc=s=>String(s).replace(/[&<>"]/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[c]));
+const toMin=t=>{const [h,m]=t.split(":").map(Number);return h*60+m;};
+const fmtMin=m=>{m=((Math.round(m)%1440)+1440)%1440;return pad(Math.floor(m/60))+":"+pad(m%60);};
+const fmtOff=m=>{if(m===0)return"UTC";const a=Math.abs(m);return"UTC"+(m<0?"−":"+")+Math.floor(a/60)+(a%60?":"+pad(a%60):"");};
+const fmtH=h=>(Math.round(h*4)/4).toString().replace(/\.0+$/,"");
+const DOW=["Sun","Mon","Tue","Wed","Thu","Fri","Sat"];
+
+const fmtCache=new Map(), offMemo=new Map();
+function dtf(tz){let f=fmtCache.get(tz);if(!f){f=new Intl.DateTimeFormat("en-US",{timeZone:tz,hourCycle:"h23",year:"numeric",month:"numeric",day:"numeric",hour:"numeric",minute:"numeric",second:"numeric"});fmtCache.set(tz,f);}return f;}
+function offsetMin(ms,tz){
+  const key=tz+"|"+Math.floor(ms/STEP);
+  let v=offMemo.get(key); if(v!==undefined) return v;
+  const p={}; for(const x of dtf(tz).formatToParts(new Date(ms))) p[x.type]=x.value;
+  const asUTC=Date.UTC(+p.year,+p.month-1,+p.day,+p.hour%24,+p.minute,+p.second);
+  v=Math.round((asUTC-Math.floor(ms/1000)*1000)/60000);
+  offMemo.set(key,v); return v;
+}
+function dayStart(ds,tz){
+  const [y,m,d]=ds.split("-").map(Number);
+  const g=Date.UTC(y,m-1,d);
+  let t=g-offsetMin(g,tz)*60000;
+  t=g-offsetMin(t,tz)*60000;
+  return t;
+}
+function localOf(ms,tz){
+  const off=offsetMin(ms,tz), lm=Math.floor(ms/60000)+off;
+  return{tod:((lm%1440)+1440)%1440,dow:new Date(lm*60000).getUTCDay()};
+}
+const inWin=(t,s,e)=>s===e?true:(s<e?(t>=s&&t<e):(t>=s||t<e));
+const todayStr=()=>{const d=new Date();return d.getFullYear()+"-"+pad(d.getMonth()+1)+"-"+pad(d.getDate());};
+
+/* ---------- state ---------- */
+const KEY="coverage-planner-v3";
+let uid=Date.now();
+const city=(n,tz)=>CITIES.find(c=>c.name===n&&(!tz||c.tz===tz));
+function mkSite(c,i,status,start,end){return{id:"s"+(uid++),name:c.name,country:c.country,tz:c.tz,lat:c.lat,lon:c.lon,start,end,status,color:PALETTE[i%PALETTE.length]};}
+function mkRcv(c,start,end){return{id:"r"+(uid++),name:c.name,country:c.country,tz:c.tz,lat:c.lat,lon:c.lon,start,end};}
+function defaults(){
+  return{
+    date:todayStr(),viewTz:"UTC",mode:"compare",weekdays:false,
+    sites:[
+      mkSite(city("Oslo"),0,"live","09:00","16:00"),
+      mkSite(city("Denver"),1,"live","08:00","15:00"),
+      mkSite(city("San Jose"),2,"live","09:00","16:00")
+    ],
+    receivers:[],
+    suggest:{start:"09:00",end:"16:00",obj:"receivers"}
+  };
+}
+let S;
+try{const raw=localStorage.getItem(KEY);if(raw){S=JSON.parse(raw);if(!S||!Array.isArray(S.sites)||!Array.isArray(S.receivers))S=null;}}catch(e){S=null;}
+if(!S) S=defaults();
+S.suggest=S.suggest||{start:"09:00",end:"16:00",obj:"receivers"};
+function save(){try{localStorage.setItem(KEY,JSON.stringify(S));}catch(e){}}
+
+/* ---------- masks ---------- */
+function mask(tz,s,e,t0){
+  const a=new Uint8Array(N);
+  for(let i=0;i<N;i++){
+    const L=localOf(t0+i*STEP,tz);
+    a[i]=(inWin(L.tod,s,e)&&(!S.weekdays||(L.dow>0&&L.dow<6)))?1:0;
+  }
+  return a;
+}
+const siteMask=(s,t0)=>mask(s.tz,toMin(s.start),toMin(s.end),t0);
+const orAll=(list)=>{const a=new Uint8Array(N);for(const m of list)for(let i=0;i<N;i++)if(m[i])a[i]=1;return a;};
+const sum=a=>{let n=0;for(let i=0;i<a.length;i++)n+=a[i]?1:0;return n;};
+const andSum=(a,b)=>{let n=0;for(let i=0;i<N;i++)if(a[i]&&b[i])n++;return n;};
+function runs(arr){
+  const out=[];let s=0;
+  for(let i=1;i<=arr.length;i++){
+    if(i===arr.length||arr[i]!==arr[s]){out.push({s,e:i,v:arr[s]});s=i;}
+  }
+  return out;
+}
+function gapRuns(w,c){
+  const g=new Uint8Array(N);for(let i=0;i<N;i++)g[i]=(w[i]&&!c[i])?1:0;
+  let r=runs(g).filter(x=>x.v===1).map(x=>[x.s,x.e]);
+  if(r.length>1&&r[0][0]===0&&r[r.length-1][1]===N){const f=r.shift(),l=r.pop();r.push([l[0],f[1]+N]);}
+  return r.map(([s,e])=>fmtMin(s*15)+"–"+fmtMin(e*15));
+}
+const lenText=o=>{const s=toMin(o.start),e=toMin(o.end);const d=s===e?1440:((e-s)+1440)%1440;return fmtH(d/60)+" h"+(s>e?" · overnight":"");};
+const tzLabel=tz=>fmtOff(offsetMin(dayStart(S.date,tz)+12*3600000,tz));
+const viewT0=()=>dayStart(S.date,S.viewTz);
+
+/* ---------- cursor ---------- */
+let cur=720;
+function resetCursor(){
+  const t0=viewT0(),now=Date.now();
+  cur=(now>=t0&&now<t0+86400000)?(now-t0)/60000:720;
+}
+const cursorMs=()=>viewT0()+cur*60000;
+
+/* ---------- sidebar ---------- */
+function itemHtml(o,kind){
+  const planned=kind==="site"&&o.status==="planned";
+  const seg=kind==="site"?`<span class="seg sm" role="group" aria-label="Status for ${esc(o.name)}"><button type="button" data-act="live" aria-pressed="${!planned}">Live</button><button type="button" data-act="planned" aria-pressed="${planned}">Planned</button></span>`:"";
+  const l1=kind==="site"?"Start":"From", l2=kind==="site"?"End":"To";
+  return`<div class="item" data-id="${o.id}" style="--c:${kind==="site"?o.color:"var(--ink)"}">
+    <div class="ih"><span class="nm"><b>${esc(o.name)}</b><small>${esc(o.country)}</small></span>${seg}<button type="button" class="x" data-act="del" aria-label="Remove ${esc(o.name)}">×</button></div>
+    <div class="im">${tzLabel(o.tz)} · ${esc(o.tz)}</div>
+    <div class="it"><label>${l1}<input type="time" step="900" data-f="start" value="${o.start}"></label><label>${l2}<input type="time" step="900" data-f="end" value="${o.end}"></label><span class="len" data-len>${lenText(o)}</span></div>
+  </div>`;
+}
+function renderSide(){
+  $("#siteList").innerHTML=S.sites.length?S.sites.map(s=>itemHtml(s,"site")).join(""):`<p class="empty">No sites yet. Search for a city below.</p>`;
+  $("#rcvList").innerHTML=S.receivers.length?S.receivers.map(r=>itemHtml(r,"rcv")).join(""):`<p class="empty">No receiving end yet. Add one to see how well you cover it.</p>`;
+}
+function bindList(el,get,set,kind){
+  el.addEventListener("click",e=>{
+    const b=e.target.closest("button[data-act]");if(!b)return;
+    const id=b.closest(".item").dataset.id,arr=get(),o=arr.find(x=>x.id===id);if(!o)return;
+    if(b.dataset.act==="del")set(arr.filter(x=>x!==o));else o.status=b.dataset.act;
+    save();renderAll();
+  });
+  el.addEventListener("input",e=>{
+    const inp=e.target.closest("input[data-f]");if(!inp||!inp.value)return;
+    const item=inp.closest(".item"),o=get().find(x=>x.id===item.dataset.id);if(!o)return;
+    o[inp.dataset.f]=inp.value;
+    item.querySelector("[data-len]").textContent=lenText(o);
+    save();renderMain();
+  });
+}
+bindList($("#siteList"),()=>S.sites,v=>{S.sites=v;},"site");
+bindList($("#rcvList"),()=>S.receivers,v=>{S.receivers=v;},"rcv");
+
+function nextColor(){const used=new Set(S.sites.map(s=>s.color));return PALETTE.find(c=>!used.has(c))||PALETTE[S.sites.length%PALETTE.length];}
+function addSite(c,status){
+  const s=mkSite(c,0,status,S.suggest.start,S.suggest.end);s.color=nextColor();
+  S.sites.push(s);save();renderAll();
+}
+
+/* ---------- search box ---------- */
+function attachSearch(root,ph,onPick){
+  root.innerHTML=`<input type="text" role="combobox" aria-expanded="false" aria-autocomplete="list" autocomplete="off" spellcheck="false" placeholder="${ph}" aria-label="${ph}"><ul class="res" role="listbox" hidden></ul>`;
+  const inp=root.firstElementChild,ul=root.lastElementChild;
+  let items=[],act=-1;
+  const close=()=>{ul.hidden=true;inp.setAttribute("aria-expanded","false");act=-1;};
+  const paint=()=>{
+    ul.innerHTML=items.length?items.map((c,i)=>`<li role="option" data-i="${i}" class="${i===act?"on":""}"><span><b>${esc(c.name)}</b> <small>${esc(c.country)}</small></span><em>${tzLabel(c.tz)}</em></li>`).join(""):`<li class="none">No match. Try a city name, or a zone such as Asia/Kolkata.</li>`;
+    ul.hidden=false;inp.setAttribute("aria-expanded","true");
+  };
+  const pick=c=>{inp.value="";close();onPick(c);};
+  inp.addEventListener("input",()=>{if(!inp.value.trim()){close();return;}items=search(inp.value);act=items.length?0:-1;paint();});
+  inp.addEventListener("keydown",e=>{
+    if(e.key==="ArrowDown"&&items.length){e.preventDefault();act=(act+1)%items.length;paint();}
+    else if(e.key==="ArrowUp"&&items.length){e.preventDefault();act=(act-1+items.length)%items.length;paint();}
+    else if(e.key==="Enter"&&act>=0){e.preventDefault();pick(items[act]);}
+    else if(e.key==="Escape")close();
+  });
+  inp.addEventListener("blur",()=>setTimeout(close,120));
+  ul.addEventListener("pointerdown",e=>{const li=e.target.closest("li[data-i]");if(!li)return;e.preventDefault();pick(items[+li.dataset.i]);});
+}
+attachSearch($("#siteSearch"),"Add a site: search any city",c=>addSite(c,"live"));
+attachSearch($("#rcvSearch"),"Add a receiving end: search any city",c=>{S.receivers.push(mkRcv(c,"09:00","16:00"));save();renderAll();});
+
+/* ---------- controls ---------- */
+function renderControls(){
+  $("#date").value=S.date;
+  $("#wk").checked=S.weekdays;
+  const tzs=new Map([["UTC","UTC"]]);
+  for(const s of S.sites)if(!tzs.has(s.tz))tzs.set(s.tz,s.name);
+  for(const r of S.receivers)if(!tzs.has(r.tz))tzs.set(r.tz,r.name);
+  if(!tzs.has(S.viewTz))S.viewTz="UTC";
+  $("#viewTz").innerHTML=[...tzs].map(([tz,n])=>`<option value="${esc(tz)}"${tz===S.viewTz?" selected":""}>${tz==="UTC"?"UTC":esc(n)+" time"} (${tzLabel(tz)})</option>`).join("");
+  document.querySelectorAll("#modeSeg button").forEach(b=>b.setAttribute("aria-pressed",String(b.dataset.mode===S.mode)));
+  $("#sugS").value=S.suggest.start;$("#sugE").value=S.suggest.end;$("#sugObj").value=S.suggest.obj;
+}
+$("#date").addEventListener("change",e=>{if(!e.target.value)return;S.date=e.target.value;save();resetCursor();renderAll();});
+$("#viewTz").addEventListener("change",e=>{S.viewTz=e.target.value;save();resetCursor();renderMain();});
+$("#wk").addEventListener("change",e=>{S.weekdays=e.target.checked;save();renderMain();});
+$("#modeSeg").addEventListener("click",e=>{const b=e.target.closest("button[data-mode]");if(!b)return;S.mode=b.dataset.mode;save();renderControls();renderMain();});
+$("#sugS").addEventListener("input",e=>{if(e.target.value){S.suggest.start=e.target.value;save();renderSuggest();}});
+$("#sugE").addEventListener("input",e=>{if(e.target.value){S.suggest.end=e.target.value;save();renderSuggest();}});
+$("#sugObj").addEventListener("change",e=>{S.suggest.obj=e.target.value;save();renderSuggest();});
+$("#reset").addEventListener("click",()=>{S=defaults();save();resetCursor();renderAll();});
+
+/* ---------- main render ---------- */
+let D=null;
+function compute(){
+  const t0=viewT0();
+  const live=S.sites.filter(s=>s.status==="live"),plan=S.sites.filter(s=>s.status==="planned");
+  const masks=new Map(S.sites.map(s=>[s.id,siteMask(s,t0)]));
+  const cntA=new Uint8Array(N),cntB=new Uint8Array(N);
+  for(const s of live){const m=masks.get(s.id);for(let i=0;i<N;i++)if(m[i]){cntA[i]++;cntB[i]++;}}
+  for(const s of plan){const m=masks.get(s.id);for(let i=0;i<N;i++)if(m[i])cntB[i]++;}
+  return{t0,live,plan,masks,cntA,cntB,showA:S.mode!=="scenario",showB:S.mode==="scenario"||(S.mode==="compare"&&plan.length>0)};
+}
+const segHtml=(s,e,cls,style,title,inner)=>`<i class="sg ${cls}" style="left:${s/N*100}%;width:${(e-s)/N*100}%;${style||""}" title="${esc(title||"")}">${inner||""}</i>`;
+const row=(lab,trk,tall)=>`<div class="r"><div class="lab">${lab}</div><div class="trk${tall?" tall":""}">${trk}</div></div>`;
+const sub=t=>`<div class="r sub"><div class="lab">${t}</div><div></div></div>`;
+const hrs=a=>sum(a)*0.25;
+
+function heatTrack(cnt,label){
+  return runs(cnt).map(r=>{
+    if(r.v===0)return segHtml(r.s,r.e,"gap","","Not covered");
+    const w=(r.e-r.s)/N;
+    return segHtml(r.s,r.e,"heat",`background:color-mix(in srgb,var(--cover) ${Math.min(100,30+24*r.v)}%,var(--track));border-radius:0`,r.v+" on shift",w>0.04?r.v:"");
+  }).join("");
+}
+
+function renderMain(){
+  D=compute();
+  const {cntA,cntB,showA,showB}=D;
+
+  // stats
+  const hA=hrs(cntA),hB=hrs(cntB),two=hrs(Uint8Array.from(showB?cntB:cntA,v=>v>=2?1:0));
+  let st="";
+  const pA=Math.round(hA/24*100),pB=Math.round(hB/24*100);
+  if(showA)st+=`<div class="stat"><b>${pA}<i>%</i></b><span>Global coverage score, live sites (${fmtH(hA)} of 24 h)</span></div>`;
+  if(showB){
+    const d=pB-pA;
+    st+=`<div class="stat"><b>${pB}<i>%</i></b><span>${showA&&d>0?`Global coverage score with planned <span class="up">+${d} points</span>`:"Global coverage score with planned sites"} (${fmtH(hB)} of 24 h)</span></div>`;
+  }
+  st+=`<div class="stat"><b>${fmtH(two)}<i>h</i></b><span>With two or more sites on shift</span></div>`;
+  $("#stats").innerHTML=st;
+
+  // notes
+  let notes="";
+  if(S.weekdays&&!(sum(cntA)+sum(cntB)))notes=`<p class="note">Nobody is on shift in this 24-hour window because Mon–Fri only is on and the date falls on a weekend. Pick a weekday or turn it off.</p>`;
+  if(!S.sites.length)notes=`<p class="note">Add your first site in the panel on the left to see coverage.</p>`;
+  $("#notes").innerHTML=notes;
+
+  // timeline
+  const vlab=S.viewTz==="UTC"?"UTC":(S.sites.concat(S.receivers).find(o=>o.tz===S.viewTz)||{name:S.viewTz}).name+" time";
+  let ax="";for(let h=0;h<24;h+=3)ax+=`<span style="left:${h/24*100}%">${pad(h)}</span>`;
+  let h=`<div class="r"><div class="lab"><small>${esc(vlab)}</small></div><div class="ax">${ax}</div></div>`;
+
+  const sites=S.sites.filter(s=>s.status==="live"||showB);
+  if(sites.length){
+    h+=sub("Team sites");
+    for(const s of sites){
+      const m=D.masks.get(s.id),pl=s.status==="planned";
+      const lab=`<span class="dot" style="background:${s.color}"></span><span class="ln"><b>${esc(s.name)}</b><small>${s.start}–${s.end} local${pl?" · planned":""}</small></span>`;
+      const t=runs(m).filter(r=>r.v).map(r=>segHtml(r.s,r.e,pl?"plan":"site",`--c:${s.color}`,`${s.name} ${s.start}–${s.end} local`)).join("");
+      h+=row(lab,t);
+    }
+  }
+  if(S.sites.length){
+    h+=sub("Combined coverage");
+    if(showA)h+=row(`<span class="ln"><b>${showB?"Live sites":"Live sites"}</b><small>people on shift</small></span>`,heatTrack(cntA),true);
+    if(showB)h+=row(`<span class="ln"><b>${showA?"With planned":"With planned sites"}</b><small>people on shift</small></span>`,heatTrack(cntB),true);
+  }
+  if(S.receivers.length&&S.sites.length){
+    h+=sub("Receiving ends");
+    for(const r of S.receivers){
+      const w=mask(r.tz,toMin(r.start),toMin(r.end),D.t0);
+      const st=new Uint8Array(N);
+      for(let i=0;i<N;i++){
+        if(!w[i])continue;
+        const a=cntA[i]>0,b=cntB[i]>0;
+        if(S.mode==="current")st[i]=a?1:3;
+        else if(S.mode==="scenario")st[i]=b?1:3;
+        else st[i]=a?1:(b?2:3);
+      }
+      const t=runs(st).filter(x=>x.v).map(x=>segHtml(x.s,x.e,x.v===1?"cov":x.v===2?"add":"gap","",x.v===1?"Covered":x.v===2?"Covered only by planned sites":"Not covered")).join("");
+      const lab=`<span class="dia"></span><span class="ln"><b>${esc(r.name)}</b><small>needs ${r.start}–${r.end} local</small></span>`;
+      h+=row(lab,t,true);
+    }
+  }
+  h+=`<div class="cur"><div class="line"></div><div class="bub"></div></div>`;
+  $("#tl").innerHTML=h;
+
+  let lg=`<span><i style="background:var(--cover)"></i>Covered</span>`;
+  if(S.mode==="compare")lg+=`<span><i style="background:repeating-linear-gradient(135deg,var(--cover) 0 5px,color-mix(in srgb,var(--cover) 30%,transparent) 5px 10px)"></i>Covered only by planned sites</span>`;
+  lg+=`<span><i style="background:repeating-linear-gradient(135deg,color-mix(in srgb,var(--gap) 60%,transparent) 0 3px,transparent 3px 7px);outline:1px solid color-mix(in srgb,var(--gap) 65%,transparent);outline-offset:-1px"></i>Gap</span>`;
+  $("#legend").innerHTML=lg;
+
+  renderReceivers();
+  renderSuggest();
+  setCursor(cur);
+}
+
+function recvCalc(r,A,B){
+  const t0=dayStart(S.date,r.tz);
+  const w=mask(r.tz,toMin(r.start),toMin(r.end),t0);
+  const ca=orAll(A.map(s=>siteMask(s,t0))),cb=orAll(B.map(s=>siteMask(s,t0)));
+  const total=sum(w);
+  return{total,pa:total?andSum(w,ca)/total:0,pb:total?andSum(w,cb)/total:0,ga:gapRuns(w,ca),gb:gapRuns(w,cb)};
+}
+function renderReceivers(){
+  if(!S.receivers.length){$("#rcvResults").innerHTML=`<p class="empty">Add a receiving end in the left panel to see how much of its day you cover.</p>`;return;}
+  const A=D.live,B=S.sites;
+  $("#rcvResults").innerHTML=S.receivers.map(r=>{
+    const c=recvCalc(r,A,B);
+    const head=`<div class="rh"><b>${esc(r.name)}</b><small>${r.start}–${r.end} local · ${tzLabel(r.tz)}</small></div>`;
+    if(!c.total)return`<div class="rc">${head}<p><small>No hours to cover on this date (Mon–Fri only is on and it is a weekend there).</small></p></div>`;
+    const pa=Math.round(c.pa*100),pb=Math.round(c.pb*100);
+    const gl=(g)=>g.length?g.join(", ")+" local":"none";
+    let bar,txt,gaps;
+    if(S.mode==="current"){
+      bar=`<i class="a" style="width:${pa}%"></i>`;
+      txt=`<span class="pct">${pa}%</span> of ${esc(r.name)}’s hours are covered by live sites`;
+      gaps=`<p><small>Not covered: ${gl(c.ga)}</small></p>`;
+    }else if(S.mode==="scenario"){
+      bar=`<i class="a" style="width:${pb}%"></i>`;
+      txt=`<span class="pct">${pb}%</span> covered with planned sites included`;
+      gaps=`<p><small>Not covered: ${gl(c.gb)}</small></p>`;
+    }else{
+      bar=`<i class="b" style="width:${pb}%"></i><i class="a" style="width:${pa}%"></i>`;
+      txt=`<span class="pct">${pa}%</span> covered by live sites, <span class="pct">${pb}%</span> with planned${pb>pa?` (+${pb-pa} points)`:""}`;
+      gaps=`<p><small>Not covered today: ${gl(c.ga)}</small></p><p><small>Still uncovered with planned: ${gl(c.gb)}</small></p>`;
+    }
+    return`<div class="rc">${head}<div class="pb">${bar}</div><p>${txt}</p>${gaps}</div>`;
+  }).join("");
+}
+
+/* ---------- suggestions ---------- */
+function renderSuggest(){
+  const box=$("#sugRes"),hasR=S.receivers.length>0;
+  $("#sugObj").querySelector('option[value="receivers"]').disabled=!hasR;
+  const obj=hasR?S.suggest.obj:"global";
+  $("#sugObj").value=obj;
+  const base=S.mode==="current"?D.live:S.sites;
+  const used=new Set(S.sites.map(s=>s.tz)),seen=new Set();
+  const cands=CITIES.filter(c=>{if(used.has(c.tz)||seen.has(c.tz))return false;seen.add(c.tz);return true;});
+  const ss=toMin(S.suggest.start),se=toMin(S.suggest.end);
+  let ctx;
+  if(obj==="receivers"){
+    ctx=S.receivers.map(r=>{const t0=dayStart(S.date,r.tz);const w=mask(r.tz,toMin(r.start),toMin(r.end),t0);const b=orAll(base.map(s=>siteMask(s,t0)));return{t0,w,b,tot:sum(w),cb:andSum(w,b)};}).filter(x=>x.tot>0);
+  }else{
+    const t0=D.t0;const all=new Uint8Array(N).fill(1);const b=orAll(base.map(s=>siteMask(s,t0)));ctx=[{t0,w:all,b,tot:N,cb:sum(b)}];
+  }
+  if(!ctx.length){box.innerHTML=`<p class="empty">Nothing to optimise on this date. Check the date and the Mon–Fri setting.</p>`;return;}
+  const scored=cands.map(c=>{
+    let g=0;
+    for(const x of ctx){
+      const m=mask(c.tz,ss,se,x.t0);
+      let n=0;for(let i=0;i<N;i++)if(x.w[i]&&(x.b[i]||m[i]))n++;
+      g+=(n-x.cb)/x.tot;
+    }
+    return{c,gain:g/ctx.length};
+  }).filter(x=>x.gain>0.0001).sort((a,b)=>b.gain-a.gain).slice(0,5);
+  if(!scored.length){box.innerHTML=`<p class="empty">No new site adds cover with these hours. Everything that matters is already covered, or try different shift hours.</p>`;return;}
+  const top=scored[0].gain;
+  box.innerHTML=scored.map(({c,gain})=>{
+    const txt=obj==="global"?`+${fmtH(gain*24)} h around the clock`:`+${Math.round(gain*100)}% of ${ctx.length>1?"receiving-end hours on average":"the receiving end’s hours"}`;
+    return`<div class="sug"><div class="nm"><b>${esc(c.name)}</b><small>${esc(c.country)} · ${tzLabel(c.tz)} · ${S.suggest.start}–${S.suggest.end} local</small></div><div><div class="gb"><i style="width:${gain/top*100}%"></i></div><small>${txt}</small></div><button type="button" class="btn" data-name="${esc(c.name)}" data-tz="${esc(c.tz)}">Add as planned</button></div>`;
+  }).join("");
+}
+$("#sugRes").addEventListener("click",e=>{
+  const b=e.target.closest("button[data-name]");if(!b)return;
+  const c=CITIES.find(x=>x.name===b.dataset.name&&x.tz===b.dataset.tz);if(c)addSite(c,"planned");
+});
+
+/* ---------- cursor, clocks, map ---------- */
+function setCursor(m){
+  cur=Math.max(0,Math.min(1440,m));
+  const line=$("#tl .line"),bub=$("#tl .bub");
+  if(line){
+    const f=cur/1440*100;
+    line.style.left=f+"%";bub.style.left=f+"%";
+    bub.className="bub"+(cur<70?" l":cur>1370?" rr":"");
+    bub.textContent=fmtMin(cur);
+  }
+  updateClock();scheduleMap();
+}
+const tl=$("#tl");
+function pointerToMin(e){
+  const c=$("#tl .cur");if(!c)return null;
+  const r=c.getBoundingClientRect();
+  const f=(e.clientX-r.left)/r.width;
+  return f<0||f>1?null:f*1440;
+}
+tl.addEventListener("pointermove",e=>{const m=pointerToMin(e);if(m!==null)setCursor(m);});
+tl.addEventListener("pointerdown",e=>{const m=pointerToMin(e);if(m!==null)setCursor(m);});
+
+function onShift(o,ms){const L=localOf(ms,o.tz);return inWin(L.tod,toMin(o.start),toMin(o.end))&&(!S.weekdays||(L.dow>0&&L.dow<6));}
+function updateClock(){
+  const ms=cursorMs();
+  const live=S.sites.filter(s=>s.status==="live"),all=S.sites;
+  const showB=S.mode!=="current",showA=S.mode!=="scenario";
+  const set=showB?all:live;
+  const covered=set.some(s=>onShift(s,ms));
+  const chips=[];
+  for(const s of S.sites){
+    if(s.status==="planned"&&!showB)continue;
+    const L=localOf(ms,s.tz),on=onShift(s,ms);
+    chips.push(`<div class="chip"><span class="dot" style="background:${s.color}"></span><div><b>${esc(s.name)}</b><small>${fmtMin(L.tod)} ${DOW[L.dow]}${s.status==="planned"?" · planned":""}</small></div><span style="margin-left:auto" class="${on?"on":""}"><small class="${on?"on":""}">${on?"On shift":"Off"}</small></span></div>`);
+  }
+  for(const r of S.receivers){
+    const L=localOf(ms,r.tz),open=onShift(r,ms);
+    const cl=!open?"":(covered?"on":"bad"),tx=!open?"Outside window":(covered?"Covered":"Needs cover");
+    chips.push(`<div class="chip"><span class="dia"></span><div><b>${esc(r.name)}</b><small>${fmtMin(L.tod)} ${DOW[L.dow]} · receiving end</small></div><span style="margin-left:auto"><small class="${cl}">${tx}</small></span></div>`);
+  }
+  $("#clock").innerHTML=chips.join("");
+  const vt=localOf(ms,S.viewTz);
+  $("#mapcap").textContent=`Sun position at ${fmtMin(vt.tod)} ${S.viewTz==="UTC"?"UTC":"in the selected time zone"}. Filled markers are on shift, hollow ones are off, dashed rings are planned, diamonds are receiving ends. Move across the timeline to change the moment.`;
+}
+
+const LAND_POLYS=[
+ [[-168,66],[-162,70],[-156,71],[-141,70],[-128,70],[-115,68],[-95,72],[-85,69],[-82,64],[-93,60],[-94,57],[-85,55],[-80,52],[-78,60],[-70,60],[-65,60],[-62,57],[-56,52],[-60,47],[-66,45],[-70,42],[-74,40],[-76,35],[-81,31],[-80,26],[-82,26],[-85,30],[-90,29],[-94,29],[-97,26],[-97,21],[-95,18],[-91,19],[-87,21],[-88,16],[-84,15],[-83,10],[-79,9],[-78,8],[-80,7],[-84,9],[-88,13],[-92,15],[-96,16],[-105,20],[-110,24],[-112,29],[-115,32],[-117,33],[-121,35],[-124,40],[-124,47],[-128,51],[-133,56],[-140,60],[-148,60],[-153,57],[-160,56],[-165,60],[-166,62]],
+ [[-80,8],[-77,8],[-72,12],[-63,11],[-60,8],[-52,5],[-50,0],[-44,-2],[-35,-5],[-35,-9],[-39,-14],[-39,-18],[-41,-22],[-48,-26],[-49,-29],[-53,-34],[-58,-35],[-57,-38],[-62,-39],[-65,-42],[-66,-47],[-69,-51],[-68,-54],[-72,-54],[-75,-50],[-74,-43],[-73,-37],[-71,-30],[-70,-20],[-76,-14],[-81,-6],[-80,-2],[-78,2],[-77,7]],
+ [[-17,21],[-13,28],[-9,32],[-6,36],[10,37],[11,33],[20,31],[25,32],[32,31],[34,28],[37,22],[43,12],[51,12],[48,5],[40,-3],[39,-8],[41,-15],[35,-24],[33,-27],[28,-33],[20,-35],[18,-32],[15,-26],[12,-17],[13,-10],[9,-1],[9,4],[4,6],[-4,5],[-8,4],[-13,8],[-17,14]],
+ [[-9,37],[-9,43],[-2,44],[-1,46],[-4,48],[2,51],[5,53],[8,54],[8,57],[10,57],[11,54],[14,54],[20,55],[22,58],[24,60],[29,60],[22,61],[25,65],[22,66],[18,63],[17,60],[13,56],[11,59],[5,59],[5,62],[14,67],[20,70],[28,71],[40,67],[45,68],[60,69],[70,73],[80,73],[100,77],[113,74],[130,71],[140,72],[160,70],[170,70],[180,68],[180,65],[172,62],[164,60],[162,56],[156,51],[156,57],[148,59],[142,59],[137,54],[141,52],[140,48],[135,43],[130,42],[129,38],[126,35],[126,38],[122,40],[118,39],[121,37],[119,35],[122,31],[120,26],[116,22],[110,21],[108,18],[106,10],[105,9],[103,11],[100,13],[99,8],[103,2],[101,3],[98,8],[98,16],[94,17],[92,22],[88,22],[86,20],[80,15],[80,10],[77,8],[73,16],[72,21],[67,24],[62,25],[57,26],[56,27],[52,28],[48,30],[50,26],[56,24],[59,22],[55,17],[44,13],[43,16],[39,22],[35,28],[34,31],[36,36],[30,36],[27,37],[26,40],[23,40],[24,38],[22,36],[21,39],[19,42],[13,45],[16,41],[18,40],[16,38],[12,42],[9,44],[3,43],[0,39],[-2,37],[-6,36]],
+ [[-5,50],[1,51],[2,53],[-2,57],[-3,59],[-6,58],[-5,55],[-3,54],[-5,52]],
+ [[-10,52],[-6,52],[-6,55],[-10,54]],
+ [[-55,60],[-43,60],[-20,70],[-20,80],[-45,83],[-65,80],[-70,77],[-58,75],[-52,68]],
+ [[-24,64],[-14,64],[-14,66],[-22,66]],
+ [[114,-22],[122,-18],[130,-12],[136,-12],[137,-16],[142,-11],[146,-19],[153,-26],[150,-37],[141,-38],[135,-35],[130,-32],[118,-35],[115,-34],[113,-26]],
+ [[172,-35],[178,-38],[175,-42],[172,-41],[167,-46],[170,-46],[174,-41]],
+ [[130,31],[135,34],[140,36],[142,40],[142,45],[145,43],[141,41],[140,38],[137,37],[132,35]],
+ [[95,5],[106,-6],[104,-5],[98,2]],
+ [[109,1],[117,7],[119,1],[116,-4],[110,-3]],
+ [[105,-6],[114,-8],[106,-7]],
+ [[131,-1],[141,-3],[150,-10],[141,-9],[135,-4]],
+ [[120,18],[122,14],[126,7],[122,8],[120,14]],
+ [[44,-25],[47,-25],[50,-15],[49,-12],[44,-17]]
+];
+function inPoly(x,y,p){let c=false;for(let i=0,j=p.length-1;i<p.length;j=i++){const a=p[i],b=p[j];if((a[1]>y)!==(b[1]>y)&&x<(b[0]-a[0])*(y-a[1])/(b[1]-a[1])+a[0])c=!c;}return c;}
+const LAND=[];
+for(let lat=82;lat>=-56;lat-=2)for(let lon=-180;lon<=180;lon+=2){if(LAND_POLYS.some(p=>inPoly(lon,lat,p)))LAND.push([lon,lat]);}
+
+function sunPos(ms){
+  const d=(ms-946728000000)/86400000,R=Math.PI/180;
+  const g=(357.529+0.98560028*d)*R,q=280.459+0.98564736*d;
+  const L=(q+1.915*Math.sin(g)+0.02*Math.sin(2*g))*R,e=(23.439-0.00000036*d)*R;
+  const dec=Math.asin(Math.sin(e)*Math.sin(L));
+  const ra=Math.atan2(Math.cos(e)*Math.sin(L),Math.cos(L))/R;
+  let lon=ra-(280.46061837+360.98564736629*d);
+  lon=((lon+540)%360)-180;
+  return{dec,lon};
+}
+let mapQueued=false;
+function scheduleMap(){if(mapQueued)return;mapQueued=true;requestAnimationFrame(()=>{mapQueued=false;drawMap();});}
+function drawMap(){
+  const cv=$("#map"),wrap=cv.parentElement,W=wrap.clientWidth;if(!W)return;
+  const H=Math.round(W*136/360),dpr=window.devicePixelRatio||1;
+  if(cv.width!==Math.round(W*dpr)||cv.height!==Math.round(H*dpr)){cv.width=Math.round(W*dpr);cv.height=Math.round(H*dpr);cv.style.height=H+"px";}
+  const g=cv.getContext("2d");g.setTransform(dpr,0,0,dpr,0,0);
+  const css=getComputedStyle(document.documentElement),col=n=>css.getPropertyValue(n).trim();
+  const X=lon=>(lon+180)/360*W,Y=lat=>(80-lat)/136*H;
+  g.fillStyle=col("--track");g.fillRect(0,0,W,H);
+  g.fillStyle=col("--land");
+  const rad=Math.max(1,W/360*1.0);
+  for(const [lo,la] of LAND){g.beginPath();g.arc(X(lo),Y(la),rad,0,6.2832);g.fill();}
+  const ms=cursorMs(),sp=sunPos(ms),R=Math.PI/180,night=col("--night");
+  const cell=Math.max(3,Math.round(W/220));
+  for(let x=0;x<W;x+=cell)for(let y=0;y<H;y+=cell){
+    const lon=(x+cell/2)/W*360-180,lat=80-(y+cell/2)/H*136;
+    const s=Math.sin(lat*R)*Math.sin(sp.dec)+Math.cos(lat*R)*Math.cos(sp.dec)*Math.cos((lon-sp.lon)*R);
+    const a=0.5*Math.max(0,Math.min(1,(0.08-s)/0.25));
+    if(a>0.01){g.fillStyle=`rgba(${night},${a.toFixed(3)})`;g.fillRect(x,y,cell,cell);}
+  }
+  g.strokeStyle=col("--line");g.lineWidth=1;g.fillStyle=col("--muted");g.font="10.5px 'Schibsted Grotesk',system-ui,sans-serif";g.textAlign="center";
+  for(let lon=-180;lon<=180;lon+=30){
+    g.globalAlpha=.55;g.beginPath();g.moveTo(Math.round(X(lon))+.5,0);g.lineTo(Math.round(X(lon))+.5,H);g.stroke();g.globalAlpha=1;
+    if(lon>-180&&lon<180){const hh=lon/15;g.fillText(hh===0?"UTC":"UTC"+(hh>0?"+":"−")+Math.abs(hh),X(lon),H-5);}
+  }
+  const showB=S.mode!=="current";
+  const pts=[];
+  for(const s of S.sites){if(s.lat==null||(s.status==="planned"&&!showB))continue;pts.push({o:s,kind:"s"});}
+  for(const r of S.receivers){if(r.lat==null)continue;pts.push({o:r,kind:"r"});}
+  const boxes=[];
+  g.textAlign="left";g.font="600 12px 'Schibsted Grotesk',system-ui,sans-serif";
+  for(const p of pts){
+    const o=p.o,x=X(o.lon),y=Y(o.lat),c=p.kind==="s"?o.color:col("--ink"),on=onShift(o,ms);
+    if(p.kind==="s"){
+      if(on){g.fillStyle=c;g.globalAlpha=.25;g.beginPath();g.arc(x,y,11,0,6.2832);g.fill();g.globalAlpha=1;}
+      g.beginPath();g.arc(x,y,5.5,0,6.2832);
+      g.fillStyle=on?c:col("--panel");g.fill();
+      g.lineWidth=2;g.strokeStyle=c;g.setLineDash(o.status==="planned"?[3,2]:[]);g.stroke();g.setLineDash([]);
+    }else{
+      g.save();g.translate(x,y);g.rotate(Math.PI/4);
+      g.fillStyle=on?c:col("--panel");g.fillRect(-4.5,-4.5,9,9);g.lineWidth=2;g.strokeStyle=c;g.strokeRect(-4.5,-4.5,9,9);g.restore();
+    }
+    let lx=x+9,ly=y-8;const w=g.measureText(o.name).width;
+    if(lx+w>W-4)lx=x-9-w;
+    for(let k=0;k<6;k++){
+      const hit=boxes.some(b=>lx<b.x+b.w&&lx+w>b.x&&ly-11<b.y+b.h&&ly+3>b.y);
+      if(!hit)break;ly+=14;
+    }
+    boxes.push({x:lx,y:ly-11,w,h:14});
+    g.lineWidth=3.5;g.strokeStyle=col("--track");g.lineJoin="round";g.strokeText(o.name,lx,ly);
+    g.fillStyle=col("--ink");g.fillText(o.name,lx,ly);
+  }
+}
+window.addEventListener("resize",scheduleMap);
+try{
+  matchMedia("(prefers-color-scheme: dark)").addEventListener("change",scheduleMap);
+  new MutationObserver(scheduleMap).observe(document.documentElement,{attributes:true,attributeFilter:["data-theme"]});
+}catch(e){}
+
+function renderAll(){renderSide();renderControls();renderMain();}
+resetCursor();
+renderAll();
+})();
+</script>
+</body>
+</html>
